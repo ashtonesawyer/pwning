@@ -16,7 +16,7 @@ Dump of assembler code for function main:
 void main() {
   printf("Let's start an esoteric game!\n");
   password();
-  exit(1);
+  return;
 }
 ```
 
