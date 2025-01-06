@@ -1,5 +1,7 @@
+# Reversing
+```
 Dump of assembler code for function main:
-   0x56556480 <+0>:     push   %ebp                                                                                                                                                                     
+   0x56556480 <+0>:     push   %ebp
    0x56556481 <+1>:     mov    %esp,%ebp
    0x56556483 <+3>:     sub    $0x8,%esp
    0x56556486 <+6>:     lea    0x5655709c,%eax
@@ -16,7 +18,9 @@ void main() {
   password();
   exit(1);
 }
+```
 
+```
 Dump of assembler code for function password:
    0x565562f0 <+0>:     push   %ebp
    0x565562f1 <+1>:     mov    %esp,%ebp
@@ -236,3 +240,63 @@ void password() {
     printf("Oh no\n")
   }
 }
+```
+
+# Solving
+Now to actually solve the challenge, I need to figure out what to input. 
+
+Working from the end, I know that:
+1. It needs to equal `0x68333e3a`.
+2. Before that, each character in the string will have 0x20 added to it.
+3. Before that, each character in the string will be XORed with 42.
+
+Also, because it's a little-endian system, the first character in the string will represent the least significant byte. 
+
+```py
+>>> pw = [0x3e, 0x3a, 0x33, 0x68]
+>>> for c in pw:
+...   print(chr((c - 0x20) ^ 42))
+...
+4
+0
+9
+b
+```
+
+So, `buffer` needs to equal '409b' right after snprintf() is called. 
+
+When snprintf() is called, the first however many characters of `buffer` will be overwritten with the hexadecimal representation of the number that atoi() returns and then a null terminator. 
+We need snprintf() to write '409b' to `buffer`, where 409b represents 0x409b. atoi() converts a string to a (decimal) integer. So we need atoi() to return the decimal representation of 0x409b. 
+
+```py
+>>> 0x409b
+16539
+```
+
+So, `buffer` needs to equal '16539' right before atoi() is called. The input to atoi() is given the same treatment as right before the comparison. 
+
+```py
+>>> tmp = ['1', '6', '5', '3', '9']
+>>> for c in tmp:
+...   print(chr((c - 0x20) ^ 42))
+...
+;
+<
+?
+9
+3
+```
+
+```
+$ ./level7
+Let's start an esoteric game!
+;<?93
+Your buffer: ;<?93
+Your Integer: 16539
+Your Hex Integer: 409b
+Great! you got my password!
+Spawning a privileged shell
+
+$ cat flag
+cand{the_number_42_for_the_universe}
+```
