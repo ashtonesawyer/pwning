@@ -14,14 +14,18 @@ Dump of assembler code for function main:
    0x08048763 <+35>:    add    $0x8,%esp
    0x08048766 <+38>:    pop    %ebp
    0x08048767 <+39>:    ret
+```
 
+```c
 void main() {
     number_generator();
     printf("Let's start a game!\n");
     password();
+   return;
+}
+```
 
-
-
+```
 Dump of assembler code for function number_generator:
    0x08048570 <+0>:     push   %ebp
    0x08048571 <+1>:     mov    %esp,%ebp
@@ -72,16 +76,17 @@ Dump of assembler code for function number_generator:
    0x0804863d <+205>:   add    $0x10,%esp
    0x08048640 <+208>:   pop    %ebp
    0x08048641 <+209>:   ret
+```
 
+A quick scan of the `number_generator()`, shows that `rand()` and similar are not called, so I moved forward with the assumption that
+whatever it did I would be able to observe in memory, and could skip actually reversing the function. As such, I moved straight to
+working on `password()`. 
 
-
+```
 Dump of assembler code for function password:
    0x080486c0 <+0>:     push   %ebp
    0x080486c1 <+1>:     mov    %esp,%ebp
    0x080486c3 <+3>:     sub    $0x28,%esp
-
-
-
    0x080486c6 <+6>:     lea    0x8048817,%eax
    0x080486cc <+12>:    mov    %eax,(%esp)
    0x080486cf <+15>:    call   0x8048390 <printf@plt>
@@ -127,16 +132,30 @@ printf("Uh oh, wrong value.\n");
    0x0804872f <+111>:   add    $0x28,%esp
    0x08048732 <+114>:   pop    %ebp
    0x08048733 <+115>:   ret
+```
 
+```c
+void password() {
+   int input;
+   printf("Please send me the password.\n");
+   scanf("%d", input);
+   
+   if (check(input)) {
+      printf("Great! you got my password!\n");
+      get_a_shell();
+   }
+   else 
+      printf("Uh oh, wrong value.\n");
+      
+   return;
+}
+```
 
-
+```
 Dump of assembler code for function check:
    0x08048650 <+0>:     push   %ebp
    0x08048651 <+1>:     mov    %esp,%ebp
    0x08048653 <+3>:     sub    $0xc,%esp
-
-
-
    0x08048656 <+6>:     mov    0x8(%ebp),%eax
    0x08048659 <+9>:     mov    %eax,-0x8(%ebp)
    0x0804865c <+12>:    movl   $0x0,-0xc(%ebp)
@@ -147,14 +166,14 @@ int i = 0;       // ebp_c
    0x08048663 <+19>:    cmpl   $0x1f4,-0xc(%ebp)
    0x0804866a <+26>:    jge    0x80486a6 <check+86>
 
-if (i >= 0x1f4) return(1);
+if (i >= 0x1f4) return 1;
 
    0x08048670 <+32>:    mov    -0x8(%ebp),%eax
    0x08048673 <+35>:    mov    -0xc(%ebp),%ecx
    0x08048676 <+38>:    cltd
    0x08048677 <+39>:    idivl  0x804a02c(,%ecx,4)
 
-int keys[] @ 0x804a02c. Appears to be array of primes.
+int keys[] @ 0x804a02c. Appears to be array of primes -> {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, ...}
 
    0x0804867e <+46>:    cmp    $0x0,%edx
    0x08048681 <+49>:    jne    0x8048693 <check+67>
@@ -163,6 +182,9 @@ if (input % keys[i] != 0) jmp;
 
    0x08048687 <+55>:    movl   $0x0,-0x4(%ebp)
    0x0804868e <+62>:    jmp    0x80486ad <check+93>
+
+return 0;
+
    0x08048693 <+67>:    jmp    0x8048698 <check+72>
    0x08048698 <+72>:    mov    -0xc(%ebp),%eax
    0x0804869b <+75>:    add    $0x1,%eax
@@ -175,7 +197,21 @@ if (input % keys[i] != 0) jmp;
    0x080486b4 <+100>:   ret
 ```
 
+```c
+int check(int input) {
+   int num = input;
+   for (int i = 0; i < 0x1f4; ++i) {
+      if (input % array_of_primes[i] == 0) return 0;
+   }
+   return 1;
+}
+```
+
 # Solving
+The goal is for the return of `check()` to be 1. `check()` returns 1 when 
+there is a remainder for many prime numbers. The easiest way to do that is to input a number where 
+abs(input) is lower than the lowest number in the array of primes. So the easiest input is 1. 
+
 ```
 $ ./level9
 Let's start a game!
