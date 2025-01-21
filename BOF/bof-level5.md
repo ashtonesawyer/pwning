@@ -137,10 +137,11 @@ to the script
 ```py
 context.terminal = ['tmux', 'splitw', '-h']
 
+# 0x0804923d = receive_input+41 -- right after the read
 gdb.attach(p, '''
 set follow-fork-mode child
 break execve
-break *0x0804923d # receive_input+41 -- right after the read
+break *0x0804923d
 continue
 ''')
 ```
