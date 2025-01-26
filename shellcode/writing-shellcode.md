@@ -5,6 +5,11 @@
     - [Full Script + Solve](#full-script--solve)
   - [shellcode-64](#shellcode-64)
     - [Full Script + Solve](#full-script--solve-1)
+- [Non-Zero Shellcode](#non-zero-shellcode)
+  - [nonzero-shellcode-32](#nonzero-shellcode-32)
+    - [Full Script + Solve](#full-script--solve-2)
+  - [nonzero-shellcode-64](#nonzero-shellcode-64)
+    - [Full Script + Solve](#full-script--solve-3)
  
 # Writing Shellcode
 This is going to be an overview of a handful of the shellcode-based challenges
