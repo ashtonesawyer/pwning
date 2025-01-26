@@ -1,3 +1,11 @@
+- [Writing Shellcode](#writing-shellcode)
+  - [Compiling](#compiling)
+- [Simple Shellcode](#simple-shellcode)
+  - [shellcode-32](#shellcode-32)
+    - [Full Script + Solve](#full-script--solve)
+  - [shellcode-64](#shellcode-64)
+    - [Full Script + Solve](#full-script--solve-1)
+ 
 # Writing Shellcode
 This is going to be an overview of a handful of the shellcode-based challenges
 rather than for just one, as they're similar and more of a stepping stone to 
@@ -94,7 +102,7 @@ execve("//bin/sh", NULL, NULL)          = 0
 ...
 ```
 
-### Full Script + Solving
+### Full Script + Solve
 ```gas
 #include <sys/syscall.h>
 
@@ -138,7 +146,7 @@ and just use the variables. The arguments are passed in the same registers as in
 And instead of using `int 0x80`, we use `syscall`. We also can't directly push variables onto the stack,
 so we move them into a register and then push the register. 
 
-### Full Script + Solving
+### Full Script + Solve
 ```gas
 #include <sys/syscall.h>
 
