@@ -29,15 +29,18 @@ on the end of the challenge name.
 
 ## Compiling
 ```make
-make 32:
-        gcc -m32 -c -o shellcode.o shellcode.S && \
-        gcc -o shellcode shellcode.o -m32 && \
-        objcopy -S -O binary -j .text shellcode.o shellcode.bin
+error:
+  @echo specify 32 or 64
 
-make 64:
-        gcc -m64 -c -o shellcode.o shellcode.S && \
-        gcc -o shellcode shellcode.o -m64 && \
-        objcopy -S -O binary -j .text shellcode.o shellcode.bin
+32:
+  gcc -m32 -c -o shellcode.o shellcode.S && \
+  gcc -o shellcode shellcode.o -m32 && \
+  objcopy -S -O binary -j .text shellcode.o shellcode.bin
+
+64:
+  gcc -m64 -c -o shellcode.o shellcode.S && \
+  gcc -o shellcode shellcode.o -m64 && \
+  objcopy -S -O binary -j .text shellcode.o shellcode.bin
 ```
 
 The binary took `shellcode.bin` and used it to run our code, and then we had a privileged shell
